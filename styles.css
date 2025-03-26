@@ -1,0 +1,21 @@
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+}
+
+h1 {
+    color: #333;
+}
+
+#search {
+    padding: 10px;
+    margin-bottom: 10px;
+    width: 50%;
+}
+
+#map {
+    height: 500px;
+    width: 100%;
+    border: 2px solid black;
+    margin: auto;
+}
