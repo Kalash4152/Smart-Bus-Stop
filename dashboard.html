@@ -104,34 +104,66 @@
     <script>
         var map = L.map('map').setView([19.1000, 72.8466], 14);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-
+    
         var busMarkers = {}; 
         var selectedBusId = null;
         var selectedStop = "";
-
+    
+        var nearestStops = {
+            "andheri": [
+                { name: "Andheri Station (W)", lat: 19.1197, lon: 72.8465 },
+                { name: "Gundavali Bus Stop Andheri East", lat: 19.1204, lon: 72.8515 },
+                { name: "Andheri Bus Station (E) Agarkar Chowk", lat: 19.1185, lon: 72.8542 }
+            ],
+            "vile parle": [
+                { name: "Vile Parle Station (E)", lat: 19.0991, lon: 72.8446 },
+                { name: "Hanuman Road Bus Stop", lat: 19.1022, lon: 72.8470 },
+                { name: "Vile Parle Station (E)", lat: 19.0991, lon: 72.8446 }
+            ],
+            "santacruz": [
+                { name: "Santacruz Bus Station (E)", lat: 19.0808, lon: 72.8410 },
+                { name: "Santacruz Station (W)", lat: 19.0797, lon: 72.8419 },
+                { name: "Santacruz Station (East)", lat: 19.0805, lon: 72.8432 }
+            ]
+        };
+    
         function findNearestStop() {
-            let stops = ["Alpha Stop", "Beta Station", "Gamma Point"];
+            let userLocation = document.getElementById("user-location").value.toLowerCase();
             let stopSelect = document.getElementById("nearest-stops");
             stopSelect.innerHTML = "";
-
+            
+            let stops = nearestStops[userLocation] || [];
             stops.forEach(stop => {
                 let option = document.createElement("option");
-                option.value = stop;
-                option.textContent = stop;
+                option.value = JSON.stringify({ lat: stop.lat, lon: stop.lon, name: stop.name });
+                option.textContent = stop.name;
                 stopSelect.appendChild(option);
             });
-
-            document.getElementById("nearest-stops-container").style.display = "block";
-            selectedStop = stops[0];  // Default selection
-            stopSelect.addEventListener("change", function() {
-                selectedStop = this.value;
-            });
+    
+            document.getElementById("nearest-stops-container").style.display = stops.length > 0 ? "block" : "none";
+            if (stops.length > 0) {
+                selectedStop = stops[0].name;
+                showStopMarker(stops[0].lat, stops[0].lon, stops[0].name);
+            }
         }
-
+    
+        function showStopMarker(lat, lon, name) {
+            if (window.stopMarker) {
+                map.removeLayer(window.stopMarker);
+            }
+            window.stopMarker = L.marker([lat, lon]).addTo(map).bindPopup(name).openPopup();
+            map.setView([lat, lon], 15);
+        }
+    
+        document.getElementById("nearest-stops").addEventListener("change", function() {
+            let selected = JSON.parse(this.value);
+            showStopMarker(selected.lat, selected.lon, selected.name);
+        });
+    
         function updateBusMarkers(buses) {
             Object.values(busMarkers).forEach(marker => map.removeLayer(marker));
             busMarkers = {};
-
+    
             let selectedBus = buses.find(bus => bus.id == selectedBusId);
             if (selectedBus) {
                 let marker = L.marker([selectedBus.lat, selectedBus.lon], {
@@ -143,7 +175,7 @@
                 busMarkers[selectedBus.id] = marker;
             }
         }
-
+    
         function fetchBusData() {
             fetch("/mumbai-buses")
                 .then(response => response.json())
@@ -151,28 +183,28 @@
                     let busListDiv = document.getElementById("bus-list");
                     let busSelect = document.getElementById("bus-select");
                     let busSelectContainer = document.getElementById("bus-select-container");
-
+    
                     busListDiv.innerHTML = "<b>Available Buses:</b><br>";
                     busSelect.innerHTML = "<option value=''>Select a Bus</option>";
-
+    
                     data.buses.forEach(bus => {
                         let busTiming = bus.timings ? bus.timings.join(", ") : "No Timing Available";
                         let busInfo = `Bus ${bus.id} (Timings: ${busTiming})`;
-
+    
                         busListDiv.innerHTML += `<div class="bus-info">${busInfo}</div>`;
-
+    
                         let option = document.createElement("option");
                         option.value = bus.id;
                         option.textContent = busInfo;
                         busSelect.appendChild(option);
                     });
-
+    
                     busListDiv.style.display = "block";
                     busSelectContainer.style.display = "block";
                 })
                 .catch(error => console.error("Error fetching bus data:", error));
         }
-
+    
         function updateBusSelection() {
             selectedBusId = document.getElementById("bus-select").value;
             fetch("/mumbai-buses")
@@ -181,7 +213,7 @@
                     updateBusMarkers(data.buses);
                 });
         }
-
+    
         function sendBoardingEmail() {
             let busSelect = document.getElementById("bus-select");
             let selectedBusId = busSelect.value;
@@ -189,11 +221,11 @@
                 alert("Please select a bus.");
                 return;
             }
-
+    
             let boardingTime = new Date().toLocaleTimeString();
             let source = document.getElementById("user-location").value || "Unknown";
             let destination = document.getElementById("destination").value || "Unknown";
-
+    
             fetch("/send-boarding-email", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -209,14 +241,6 @@
             .then(data => alert(data.message || "Email sent!"))
             .catch(error => console.error("Error sending email:", error));
         }
-
-        setInterval(() => {
-            if (selectedBusId) {
-                fetch("/mumbai-buses")
-                    .then(response => response.json())
-                    .then(data => updateBusMarkers(data.buses));
-            }
-        }, 2000);
     </script>
 </body>
 </html>
